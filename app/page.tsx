@@ -1,103 +1,154 @@
-import Image from "next/image";
+// app/page.tsx
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { Search } from '@/components/Search';
+import { Card } from '@/components/Card';
+import { InfiniteScroll } from '@/components/InfiniteScroll';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { Place } from '@/lib/data';
+import { BlogItem, convertBlogItemsToPlaces } from '@/lib/api';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [query, setQuery] = useState('');
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalResults, setTotalResults] = useState(0);
+  const ITEMS_PER_PAGE = 9;
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+  // 검색 결과를 처리하는 함수
+  const handleSearch = async (searchQuery: string, results?: BlogItem[]) => {
+    setQuery(searchQuery);
+    setPage(0);
+    setLoading(true);
+
+    try {
+      if (results && results.length > 0) {
+        console.log('검색 결과:', results.length);
+
+        // API 응답을 Place 형식에 맞게 변환 (비동기 처리)
+        const convertedPlaces = await convertBlogItemsToPlaces(results);
+        console.log('변환된 장소:', convertedPlaces);
+
+        setPlaces(convertedPlaces);
+        setHasMore(false); // 현재는 페이지네이션 없음
+        setTotalResults(results.length);
+      } else if (searchQuery === '') {
+        // 검색어가 비어있으면 기본 데이터 로드
+        loadInitialData();
+      } else {
+        // 검색 결과가 없는 경우
+        setPlaces([]);
+        setHasMore(false);
+        setTotalResults(0);
+      }
+    } catch (error) {
+      console.error('검색 결과 처리 오류:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 장소 선택 처리
+  const handlePlaceSelect = (place: Place) => {
+    // localStorage에 장소 정보 저장 (경로 페이지에서 사용)
+    localStorage.setItem(`place_${place.id}`, JSON.stringify(place));
+
+    // 최근 장소 목록 업데이트
+    const recentPlaces = JSON.parse(localStorage.getItem('recent_places') || '[]');
+    const updatedPlaces = [
+      place,
+      ...recentPlaces.filter((p: Place) => p.id !== place.id)
+    ].slice(0, 10); // 최대 10개 저장
+
+    localStorage.setItem('recent_places', JSON.stringify(updatedPlaces));
+  };
+
+  // 초기 데이터 로드
+  const loadInitialData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // 여기서 기본 데이터를 로드하는 로직을 구현
+      // 예: 인기 장소나 추천 장소 목록 또는 localStorage에서 최근 검색 결과
+      const recentPlaces = JSON.parse(localStorage.getItem('recent_places') || '[]');
+
+      setPlaces(recentPlaces);
+      setHasMore(false);
+      setTotalResults(recentPlaces.length);
+    } catch (error) {
+      console.error('초기 데이터 로드 오류:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 초기 로드
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
+  // 더보기 기능 - 현재는 지원하지 않음
+  const loadMore = () => {
+    // API가 페이지네이션을 지원한다면 여기서 구현
+    console.log('더 많은 결과 로드 시도');
+  };
+
+  return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <header className="sticky top-0 z-10 bg-white dark:bg-gray-800 shadow-sm">
+          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 className="text-xl font-bold">Together</h1>
+            <ThemeToggle />
+          </div>
+        </header>
+
+        <main className="container mx-auto px-4 py-8">
+          <div className="mb-8">
+            <Search onSearch={handleSearch} />
+          </div>
+
+          {places.length > 0 ? (
+              <>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {totalResults} 개의 결과를 찾았습니다
+                  </p>
+                </div>
+
+                <InfiniteScroll
+                    loadMore={loadMore}
+                    hasMore={hasMore}
+                    loading={loading}
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {places.map(place => (
+                        <Card
+                            key={place.id}
+                            place={place}
+                            onSelect={handlePlaceSelect}
+                        />
+                    ))}
+                  </div>
+                </InfiniteScroll>
+              </>
+          ) : (
+              <div className="text-center py-12">
+                {loading ? (
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+                ) : (
+                    <p className="text-gray-600 dark:text-gray-400">검색 결과가 없습니다. 다른 검색어를 입력해보세요.</p>
+                )}
+              </div>
+          )}
+        </main>
+
+        <footer className="bg-white dark:bg-gray-800 py-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="container mx-auto px-4 text-center text-gray-600 dark:text-gray-400">
+            <p>© 2025 Together. All rights reserved.</p>
+          </div>
+        </footer>
+      </div>
   );
 }
