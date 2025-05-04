@@ -4,7 +4,7 @@ import { Place } from './data';
 
 // axios 인스턴스 생성
 const apiClient = axios.create({
-    baseURL: 'https://gunho.dev/api',
+    baseURL: 'https://gunho.dev/together',
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ export const searchLocals = async (query: string) => {
 // 블로그 메타데이터 가져오기
 export const fetchBlogMetadata = async (url: string) => {
     try {
-        const response = await fetch(`https://gunho.dev/blog-metadata?url=${encodeURIComponent(url)}`);
+        const response = await fetch(`/api/blog-metadata?url=${encodeURIComponent(url)}`);
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`메타데이터 가져오기 실패: ${response.status} ${errorText}`);
