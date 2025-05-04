@@ -153,7 +153,7 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
 
         setSearchResults(convertedPlaces);
         setTotalResults(results.length);
-        setHasMore(false); // 직접 결과를 전달받은 경우 더 불러올 데이터가 없음
+        setHasMore(true); // 직접 결과를 전달받은 경우 더 불러올 데이터가 없음
 
         // 검색어와 결과 localStorage에 저장
         localStorage.setItem('searchQuery', query);
@@ -165,7 +165,7 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
         } else {
           setSearchResults([]);
         }
-        setHasMore(false);
+        setHasMore(true);
 
         // 검색어가 없을 경우 localStorage 항목 삭제
         localStorage.removeItem('searchQuery');

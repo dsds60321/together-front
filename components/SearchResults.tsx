@@ -188,12 +188,6 @@ export function SearchResults({
                 <h2 className="text-lg font-semibold mb-4">검색 결과</h2>
 
                 {/* 스크롤 시 상단에 고정되는 선택된 항목 */}
-                {isScrolled && fixedSelectedPlace && (
-                    <div className="sticky top-16 z-10 mb-3 bg-white dark:bg-gray-800 pt-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                        <PlaceCard place={fixedSelectedPlace} />
-                    </div>
-                )}
-
                 {loading && searchResults.length === 0 ? (
                     <div className="flex justify-center py-8">
                         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
