@@ -52,7 +52,7 @@ export default function Home() {
           console.log('Loaded from localStorage:', {
             query: savedQuery,
             resultsCount: parsedResults.length,
-            hasMore: total => total > parsedResults.length
+            hasMore: (total: number) => total > parsedResults.length
           });
         } catch (e) {
           console.error('저장된 검색 결과 파싱 오류:', e);

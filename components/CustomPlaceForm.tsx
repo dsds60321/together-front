@@ -17,6 +17,7 @@ interface SearchResultPlace {
     roadAddress?: string;
     mapx?: string;
     mapy?: string;
+    isDuplicate?: boolean; // 속성 추가
 }
 
 interface CustomPlaceFormProps {

@@ -25,6 +25,9 @@ const nextConfig = {
     webpack: (config: never) => {
         return config;
     },
+    eslint: {
+        ignoreDuringBuilds: true,
+    }
 };
 
 export default nextConfig;

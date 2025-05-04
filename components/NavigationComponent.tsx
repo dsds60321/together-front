@@ -317,7 +317,7 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
     if (routePoints.length === 0) return;
 
     // 모바일 기기 체크
-    // if (!checkMobileAndAlert('네이버 지도')) return;
+    if (!checkMobileAndAlert('네이버 지도')) return;
 
     try {
       const APP_NAME = 'test';
@@ -386,7 +386,7 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
     if (routePoints.length === 0) return;
 
     // 모바일 기기 체크
-    // if (!checkMobileAndAlert('T맵')) return;
+    if (!checkMobileAndAlert('T맵')) return;
 
     // 티맵은 경로가 2개를 초과하면 불가능
     if (routePoints.length > 2) {
@@ -412,7 +412,6 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
         const x = convertCoordinate(point.mapx);
         const y = convertCoordinate(point.mapy);
         const tmapUrl = `${BASE_URL}?goalx=${x}&goaly=${y}&goalname=${encodeURIComponent(point.title)}`;
-        console.log('T맵 URL (단일 장소):', tmapUrl);
         window.location.href = tmapUrl;
         return;
       }
@@ -432,7 +431,6 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
       const endY = convertCoordinate(end.mapy);
 
       const tmapUrl = `${BASE_URL}?startx=${startX}&starty=${startY}&startname=${encodeURIComponent(start.title)}&goalx=${endX}&goaly=${endY}&goalname=${encodeURIComponent(end.title)}`;
-      console.log('T맵 URL:', tmapUrl);
       window.location.href = tmapUrl;
     } catch (error) {
       console.error('T맵 실행 오류:', error);

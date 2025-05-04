@@ -25,14 +25,6 @@ export function InfiniteScroll({ children, onLoadMore, hasMore, loading }: Infin
         observerRef.current = new IntersectionObserver(
             (entries) => {
                 const isIntersecting = entries[0]?.isIntersecting || false;
-
-                console.log('Observer triggered:', {
-                    isIntersecting,
-                    hasMore,
-                    loading,
-                    loadingAreaVisible: loadingAreaRef.current?.offsetParent !== null
-                });
-
                 if (isIntersecting && hasMore && !loading) {
                     onLoadMore();
                 }
