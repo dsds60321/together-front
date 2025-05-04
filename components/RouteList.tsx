@@ -60,7 +60,7 @@ export function RouteList({
             {routePoints.length === 0 ? (
                 <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md text-center">
                     <p className="text-gray-500 dark:text-gray-400 text-sm">
-                        위에서 장소를 검색하여 경로를 추가하세요
+                        장소를 검색하여 경로를 추가하세요
                     </p>
                 </div>
             ) : (

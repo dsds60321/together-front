@@ -3,7 +3,7 @@
 
 import {Place} from './Card';
 import {InfiniteScroll} from './InfiniteScroll';
-import {useState} from "react";
+import {useState, useEffect, useMemo} from "react";
 
 interface SearchResultsProps {
     searchResults: Place[];
@@ -37,6 +37,58 @@ export function SearchResults({
     // 장소가 이전에 선택된 장소인지 확인
     const isSelectedPlace = (place: Place) => {
         return previouslySelectedPlace && previouslySelectedPlace.id === place.id;
+    };
+
+    // 선택된 장소를 최상단으로 정렬
+    const sortedResults = useMemo(() => {
+        if (!previouslySelectedPlace) return searchResults;
+
+        // 검색 결과를 복사해서 정렬 (원본 배열 유지)
+        return [...searchResults].sort((a, b) => {
+            // 선택된 장소를 첫 번째로 정렬
+            if (a.id === previouslySelectedPlace.id) return -1;
+            if (b.id === previouslySelectedPlace.id) return 1;
+            return 0;
+        });
+    }, [searchResults, previouslySelectedPlace]);
+
+    // 스크롤 시 선택된 항목이 뷰포트에서 벗어나면 최상단에 고정하기 위한 참조
+    const [isScrolled, setIsScrolled] = useState(false);
+    const [fixedSelectedPlace, setFixedSelectedPlace] = useState<Place | null>(null);
+
+    // 스크롤 위치에 따라 "위로 가기" 버튼 표시 여부
+    const [showScrollToTop, setShowScrollToTop] = useState(false);
+
+    useEffect(() => {
+        if (!previouslySelectedPlace) {
+            setFixedSelectedPlace(null);
+            return;
+        }
+
+        const handleScroll = () => {
+            const scrollPosition = window.scrollY;
+            // 스크롤 위치가 일정 이상이면 선택된 항목을 고정
+            if (scrollPosition > 200) {
+                setIsScrolled(true);
+                setFixedSelectedPlace(previouslySelectedPlace);
+                setShowScrollToTop(true);
+            } else {
+                setIsScrolled(false);
+                setFixedSelectedPlace(null);
+                setShowScrollToTop(false);
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [previouslySelectedPlace]);
+
+    // 최상단으로 스크롤 함수
+    const scrollToTop = () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
     };
 
     // 장소 카드 컴포넌트
@@ -94,8 +146,8 @@ export function SearchResults({
                             <h3 className="text-sm font-semibold" dangerouslySetInnerHTML={{ __html: place.title }}></h3>
                             {isPreviouslySelected && (
                                 <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
-                  선택됨
-                </span>
+                                    선택됨
+                                </span>
                             )}
                         </div>
                         <div className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 mb-2" dangerouslySetInnerHTML={{ __html: place.description }}></div>
@@ -123,12 +175,6 @@ export function SearchResults({
                                     ) : copied ? "복사됨!" : "공유"}
                                 </button>
                             )}
-                            <button
-                                onClick={() => onAddPlaceToRoute(place)}
-                                className="btn-primary text-xs py-1 px-2"
-                            >
-                                경로에 추가
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -141,6 +187,13 @@ export function SearchResults({
             <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
                 <h2 className="text-lg font-semibold mb-4">검색 결과</h2>
 
+                {/* 스크롤 시 상단에 고정되는 선택된 항목 */}
+                {isScrolled && fixedSelectedPlace && (
+                    <div className="sticky top-16 z-10 mb-3 bg-white dark:bg-gray-800 pt-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                        <PlaceCard place={fixedSelectedPlace} />
+                    </div>
+                )}
+
                 {loading && searchResults.length === 0 ? (
                     <div className="flex justify-center py-8">
                         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -148,7 +201,7 @@ export function SearchResults({
                 ) : searchResults.length > 0 ? (
                     <InfiniteScroll onLoadMore={onLoadMore} hasMore={hasMore} loading={loading}>
                         <div className="grid grid-cols-1 gap-3">
-                            {searchResults.map(place => (
+                            {sortedResults.map(place => (
                                 <PlaceCard key={place.id} place={place} />
                             ))}
                         </div>
@@ -163,6 +216,19 @@ export function SearchResults({
                     <div className="mt-4 p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-md">
                         {apiError}
                     </div>
+                )}
+
+                {/* 스크롤 최상단으로 이동하는 버튼 */}
+                {showScrollToTop && (
+                    <button
+                        onClick={scrollToTop}
+                        className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-lg flex items-center justify-center transition-all duration-300 focus:outline-none z-50 transform hover:scale-110"
+                        aria-label="페이지 상단으로 이동"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                        </svg>
+                    </button>
                 )}
             </div>
         </div>

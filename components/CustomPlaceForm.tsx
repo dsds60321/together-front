@@ -188,7 +188,7 @@ export function CustomPlaceForm({ onAddPlace, routePoints = [] }: CustomPlaceFor
                     </button>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    *정확한 장소명을 입력하면 내비게이션 연동이 잘 됩니다
+                    *정확한 장소명을 입력해주세요.
                 </p>
                 {error && (
                     <p className="text-xs text-red-500 mt-1">{error}</p>

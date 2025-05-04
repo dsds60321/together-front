@@ -21,6 +21,7 @@ export default function Home() {
 
   // 검색 입력 요소에 대한 참조
   const searchInputRef = useRef<any>(null);
+  const initialRenderRef = useRef(true);
 
   // 컴포넌트 마운트시 localStorage에서 이전 검색 결과 불러오기
   useEffect(() => {
@@ -38,7 +39,21 @@ export default function Home() {
           const parsedResults = JSON.parse(savedResults);
           setPlaces(parsedResults);
           setTotalResults(parsedResults.length);
-          setHasMore(true);
+
+          // localStorage에서 불러왔을 때 hasMore 상태 설정
+          const savedTotal = localStorage.getItem('totalResults');
+          if (savedTotal) {
+            const total = parseInt(savedTotal);
+            setHasMore(total > parsedResults.length);
+          } else {
+            setHasMore(true); // 총 결과수를 모르면 일단 더 있다고 가정
+          }
+
+          console.log('Loaded from localStorage:', {
+            query: savedQuery,
+            resultsCount: parsedResults.length,
+            hasMore: total => total > parsedResults.length
+          });
         } catch (e) {
           console.error('저장된 검색 결과 파싱 오류:', e);
         }
@@ -47,10 +62,13 @@ export default function Home() {
         handleSearch(savedQuery);
       }
     }
+
+    initialRenderRef.current = false;
   }, []);
 
   // 검색 결과를 처리하는 함수
-  const handleSearch = async (searchQuery: string, results?: BlogItem[]) => {
+  const handleSearch = useCallback(async (searchQuery: string, results?: BlogItem[]) => {
+    console.log('Search initiated:', searchQuery);
     setQuery(searchQuery);
     setPage(0);
     setLoading(true);
@@ -58,40 +76,71 @@ export default function Home() {
 
     try {
       if (searchQuery && !results) {
+        console.log('Fetching search results from API');
         const response = await searchBlogPosts(searchQuery, 1, ITEMS_PER_PAGE);
 
         const items = response.items || [];
         const total = response.total || 0;
+
+        console.log('API response:', {
+          items: items.length,
+          total
+        });
 
         const convertedPlaces = await convertBlogItemsToPlaces(items);
 
         setPlaces(convertedPlaces);
         setTotalResults(total);
 
-        // 명확한 hasMore 설정: 결과가 있고 총 결과 수가 현재 표시된 수보다 많으면 더 있음
+        // 명확한 hasMore 설정
         const moreDataAvailable = items.length > 0 && total > items.length;
+        console.log('Search completed:', {
+          total,
+          itemsLength: items.length,
+          moreDataAvailable
+        });
+
         setHasMore(moreDataAvailable);
 
         // 검색어와 결과 localStorage에 저장
         localStorage.setItem('searchQuery', searchQuery);
         localStorage.setItem('searchResults', JSON.stringify(convertedPlaces));
+        localStorage.setItem('totalResults', total.toString());
+
+        // 약간의 지연 후 스크롤 영역 가시성 확인 및 스크롤 위치 조정
+        setTimeout(() => {
+          window.scrollTo(0, 0); // 페이지 맨 위로 스크롤
+          const loadingArea = document.querySelector('.infinite-scroll-loading');
+          if (loadingArea) {
+            const rect = loadingArea.getBoundingClientRect();
+            console.log('Loading area visible:', {
+              top: rect.top,
+              bottom: rect.bottom,
+              inViewport: rect.top < window.innerHeight
+            });
+          }
+        }, 100);
       } else if (results) {
+        console.log('Using provided results:', results.length);
         const convertedPlaces = await convertBlogItemsToPlaces(results);
         setPlaces(convertedPlaces);
         setTotalResults(results.length);
-        setHasMore(false); // 직접 결과를 전달받은 경우 더 이상 데이터가 없다고 가정
+        setHasMore(true); // 직접 결과를 전달받은 경우 더 이상 데이터가 없다고 가정
 
         // 검색어와 결과 localStorage에 저장
         localStorage.setItem('searchQuery', searchQuery);
         localStorage.setItem('searchResults', JSON.stringify(convertedPlaces));
+        localStorage.setItem('totalResults', results.length.toString());
       } else {
+        console.log('Empty search query, clearing results');
         setPlaces([]);
         setTotalResults(0);
-        setHasMore(false);
+        setHasMore(true);
 
         // 검색어가 없을 경우 localStorage 항목 삭제
         localStorage.removeItem('searchQuery');
         localStorage.removeItem('searchResults');
+        localStorage.removeItem('totalResults');
       }
     } catch (error) {
       console.error('검색 오류:', error);
@@ -101,33 +150,57 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-// 더보기 기능
-  const loadMore = async () => {
+  // 더보기 기능
+  const loadMore = useCallback(async () => {
+    console.log('LoadMore triggered:', {
+      loading,
+      hasMore,
+      query,
+      currentPage: page,
+      currentResults: places.length
+    });
+
     // 이미 로딩 중이거나 더 불러올 데이터가 없거나 검색어가 없으면 중단
     if (loading || !hasMore || !query) {
+      console.log('LoadMore canceled due to conditions not met');
       return;
     }
 
     // 현재 스크롤 위치 저장
     const scrollPosition = window.scrollY;
+    console.log('Current scroll position:', scrollPosition);
 
     setLoading(true);
+    console.log('LoadMore: Loading started');
 
     try {
       const nextPage = page + 1;
       const startIndex = nextPage * ITEMS_PER_PAGE + 1;
+      console.log('Fetching next page:', {
+        nextPage,
+        startIndex,
+        itemsPerPage: ITEMS_PER_PAGE
+      });
 
       const response = await searchBlogPosts(query, startIndex, ITEMS_PER_PAGE);
-
       const items = response.items || [];
+      console.log('API response for next page:', {
+        items: items.length,
+        total: response.total
+      });
 
       if (items.length > 0) {
         const convertedPlaces = await convertBlogItemsToPlaces(items);
 
         // 새 장소 목록 업데이트
         const newPlaces = [...places, ...convertedPlaces];
+        console.log('Updated results:', {
+          previousCount: places.length,
+          newCount: newPlaces.length,
+          addedCount: convertedPlaces.length
+        });
 
         // 상태 업데이트
         setPlaces(newPlaces);
@@ -138,6 +211,7 @@ export default function Home() {
 
         // 더 불러올 수 있는지 확인
         const moreAvailable = items.length > 0 && newPlaces.length < response.total;
+        console.log('More data available:', moreAvailable);
         setHasMore(moreAvailable);
 
         // 상태 업데이트 후 스크롤 위치 복원
@@ -146,8 +220,10 @@ export default function Home() {
             top: scrollPosition,
             behavior: 'auto' // 부드러운 스크롤이 아닌 즉시 이동
           });
-        }, 0);
+          console.log('Scroll position restored to:', scrollPosition);
+        }, 100);
       } else {
+        console.log('No more items returned from API');
         setHasMore(false);
       }
     } catch (error) {
@@ -155,25 +231,23 @@ export default function Home() {
       setHasMore(false);
     } finally {
       setLoading(false);
+      console.log('LoadMore: Loading completed');
     }
-  };
-
-
+  }, [loading, hasMore, query, page, places.length]);
 
   // 장소 선택 처리 (단일 선택)
-  const handlePlaceSelect = (place: Place) => {
+  const handlePlaceSelect = useCallback((place: Place) => {
     // 이미 선택된 장소라면 선택 해제, 아니면 새로 선택
     setSelectedPlace(selectedPlace?.id === place.id ? null : place);
-  };
+  }, [selectedPlace]);
 
   // 검색어 입력만 하는 함수 (자동 검색 X)
-  const setSearchInputValue = (value: string) => {
+  const setSearchInputValue = useCallback((value: string) => {
     if (searchInputRef.current) {
       searchInputRef.current.setValue(value);
       searchInputRef.current.focus();
     }
-  };
-
+  }, []);
 
   return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -211,12 +285,16 @@ export default function Home() {
             <Search onSearch={handleSearch} ref={searchInputRef} />
           </div>
 
-          {loading ? (
+          {loading && places.length === 0 ? (
               <div className="flex justify-center py-16">
                 <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
               </div>
           ) : places.length > 0 ? (
-              <InfiniteScroll onLoadMore={loadMore} hasMore={hasMore} loading={loading}>
+              <InfiniteScroll
+                  onLoadMore={loadMore}
+                  hasMore={hasMore}
+                  loading={loading}
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {places.map(place => (
                       <Card

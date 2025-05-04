@@ -452,7 +452,9 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
           <Search onSearch={handleSearch} ref={searchInputRef} />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/*<div className="grid grid-cols-1 lg:grid-cols-4 gap-6">*/}
+        {/* 세로로 변경 */}
+        <div className="grid lg:grid-cols-4 gap-6">
           {/* 왼쪽 패널: 경로 목록 */}
           <RouteList
               routePoints={routePoints}

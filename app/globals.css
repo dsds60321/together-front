@@ -8,7 +8,7 @@
   --color-background: #ffffff;
   --color-foreground: #0f172a;
   --color-muted: #64748b;
-  --color-border: #e2e8f0;
+  --color-border: #f0f4f8; /* 더 밝은 테두리 색상으로 변경 */
   --color-accent: #f8fafc;
 }
 
@@ -36,6 +36,7 @@
     border-radius: 0.5rem;
     overflow: hidden;
     transition: all 0.2s ease;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05); /* 부드러운 그림자 추가 */
   }
 
   .btn-primary {
@@ -128,4 +129,156 @@ input:focus {
   .lg\:grid-cols-3 {
     grid-template-columns: repeat(3, 1fr);
   }
+}
+
+/* 라이트 모드에서 다크 모드 클래스 재정의 */
+html:not(.dark) .dark\:bg-gray-900,
+html:not(.dark) .dark\:bg-gray-800,
+html:not(.dark) .dark\:bg-gray-700 {
+  background-color: transparent !important;
+}
+
+html:not(.dark) .dark\:text-gray-400,
+html:not(.dark) .dark\:text-gray-300,
+html:not(.dark) .dark\:text-gray-200 {
+  color: inherit !important;
+}
+
+html:not(.dark) .dark\:border-gray-700,
+html:not(.dark) .dark\:border-gray-600 {
+  border-color: #f0f4f8 !important; /* 더 밝은 색상으로 변경 */
+}
+
+/* 라이트 모드 기본 클래스 강화 */
+html:not(.dark) .bg-white {
+  background-color: #ffffff;
+}
+
+html:not(.dark) .bg-gray-50 {
+  background-color: #f9fafb;
+}
+
+html:not(.dark) .text-gray-500 {
+  color: #6b7280;
+}
+
+html:not(.dark) .text-gray-600 {
+  color: #4b5563;
+}
+
+html:not(.dark) .text-gray-700 {
+  color: #374151;
+}
+
+html:not(.dark) .border,
+html:not(.dark) .border-gray-200,
+html:not(.dark) .border-gray-300 {
+  border-color: #f0f4f8 !important; /* 더 밝은 테두리 색상 */
+}
+
+/* hover 상태 관련 클래스도 재정의 */
+html:not(.dark) .dark\:hover\:bg-gray-600:hover {
+  background-color: inherit !important;
+}
+
+/* 다크 모드 상태일 때 다크 모드 클래스 강화 */
+html.dark .dark\:bg-gray-900 {
+  background-color: #111827 !important;
+}
+
+html.dark .dark\:bg-gray-800 {
+  background-color: #1f2937 !important;
+}
+
+html.dark .dark\:bg-gray-700 {
+  background-color: #374151 !important;
+}
+
+html.dark .dark\:text-gray-400 {
+  color: #9ca3af !important;
+}
+
+html.dark .dark\:text-gray-300 {
+  color: #d1d5db !important;
+}
+
+html.dark .dark\:text-gray-200 {
+  color: #e5e7eb !important;
+}
+
+html.dark .dark\:border-gray-700 {
+  border-color: #334155 !important; /* 다크 모드에서는 약간 밝은 테두리 */
+}
+
+/* 부드러운 UI 스타일 */
+.card {
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03) !important; /* 매우 부드러운 그림자 */
+}
+
+html:not(.dark) .card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* 라이트 모드에서 카드 내부 요소의 테두리 색상 */
+html:not(.dark) .card [class*="border-"] {
+  border-color: #f0f4f8 !important;
+}
+
+/* 테두리와 그림자 추가 수정 */
+html:not(.dark) .shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+}
+
+html:not(.dark) .shadow {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03), 0 1px 2px 0 rgba(0, 0, 0, 0.02) !important;
+}
+
+/* 라이트 모드에서 푸터와 헤더 분리선 */
+html:not(.dark) header {
+  border-bottom-color: #f0f4f8 !important;
+}
+
+html:not(.dark) footer {
+  border-top-color: #f0f4f8 !important;
+}
+
+/* 모든 테두리 색상 부드럽게 통일 */
+html:not(.dark) [class*="border-"] {
+  border-color: #f0f4f8 !important;
+}
+
+/* 테이블과 구분선 */
+html:not(.dark) table,
+html:not(.dark) th,
+html:not(.dark) td,
+html:not(.dark) hr {
+  border-color: #f0f4f8 !important;
+}
+
+/* 입력 필드 테두리 */
+html:not(.dark) input,
+html:not(.dark) select,
+html:not(.dark) textarea {
+  border-color: #f0f4f8 !important;
+}
+
+html:not(.dark) input:focus,
+html:not(.dark) select:focus,
+html:not(.dark) textarea:focus {
+  border-color: #0ea5e9 !important;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.08) !important;
+}
+
+/* 헤더 및 푸터 배경색 명확하게 */
+html:not(.dark) header.bg-white,
+html:not(.dark) footer.bg-white {
+  background-color: #ffffff !important;
+}
+
+/* 카드와 UI 요소의 테두리 처리 */
+html:not(.dark) .rounded-lg,
+html:not(.dark) .rounded-md {
+  border-color: #f0f4f8 !important;
 }
