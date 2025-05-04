@@ -1,9 +1,9 @@
 // app/route/create/page.tsx
 'use client';
 
-import { NavigationComponent } from '@/components/NavigationComponent';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import {ThemeToggle} from '@/components/ThemeToggle';
 import Link from 'next/link';
+import {NavigationComponent} from "@/components/NavigationComponent";
 
 export default function CreateRoutePage() {
     return (

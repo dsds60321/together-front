@@ -1,12 +1,13 @@
+// components/NavigationComponent.tsx
 'use client';
 
 import {useCallback, useEffect, useRef, useState} from 'react';
-import {DragDropContext, Draggable, Droppable} from '@hello-pangea/dnd';
 import {Place} from './Card';
 import {Search} from './Search';
 import {BlogItem, convertBlogItemsToPlaces, searchBlogPosts} from '@/lib/api';
-import {v4 as uuidv4} from 'uuid';
-import { InfiniteScroll } from './InfiniteScroll';
+import {RouteList} from './RouteList';
+import {SearchResults} from './SearchResults';
+import {checkMobileAndAlert, convertCoordinate} from "@/lib/utils";
 
 // 경로 지점 타입 정의
 interface RoutePoint extends Place {
@@ -23,7 +24,6 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [customPlaceName, setCustomPlaceName] = useState('');
   const [previouslySelectedPlace, setPreviouslySelectedPlace] = useState<Place | null>(null);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -102,23 +102,9 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
     }
   }, [initialPlaces]);
 
-  // 드래그 앤 드롭 처리
-  const handleDragEnd = (result: any) => {
-    if (!result.destination) return;
-
-    const items = Array.from(routePoints);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-
-    // 순서에 따라 타입 다시 할당
-    const updatedItems = items.map((item, index) => {
-      let type: 'start' | 'waypoint' | 'end' = 'waypoint';
-      if (index === 0) type = 'start';
-      if (index === items.length - 1 && items.length > 1) type = 'end';
-      return { ...item, type };
-    });
-
-    setRoutePoints(updatedItems);
+  // 경로 재정렬 처리
+  const handleReorderRoutePoints = (updatedPoints: RoutePoint[]) => {
+    setRoutePoints(updatedPoints);
   };
 
   // 장소 검색 처리
@@ -277,30 +263,6 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
     setRoutePoints(newRoutePoints);
   };
 
-  // 사용자 정의 장소 추가 핸들러
-  const handleCustomPlaceAdd = () => {
-    if (!customPlaceName.trim()) return;
-
-    // 커스텀 장소 객체 생성
-    const customPlace: Place = {
-      id: `custom-${uuidv4()}`, // 고유 ID 생성
-      title: customPlaceName.trim(),
-      description: '사용자 지정 장소',
-    };
-
-    // 경로에 추가
-    addPlaceToRoute(customPlace);
-
-    // 입력란 초기화
-    setCustomPlaceName('');
-  };
-
-  // 직접 입력 폼 제출 핸들러
-  const handleCustomFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleCustomPlaceAdd();
-  };
-
   // 경로에서 장소 제거
   const removeFromRoute = (id: string) => {
     const updatedPoints = routePoints.filter(point => point.id !== id);
@@ -327,11 +289,11 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
         // Web Share API 사용 (모바일 기기에서 주로 지원)
         await navigator.share({
           title: place.title,
-          text: place.description,
+          text: place.description || '함께 공유하고 싶은 장소입니다.',
           url: place.link
         });
       } else {
-        // 클립보드에 복사 (데스크톱 등에서 폴백)
+        // 클립보드에 복사
         await navigator.clipboard.writeText(place.link);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -344,381 +306,179 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
   };
 
   // 블로그 방문 함수
-  const visitBlog = (place: Place) => {
+  const handleVisitBlog = (place: Place) => {
     if (place.link) {
-      window.open(place.link, '_blank');
+      window.open(place.link, '_blank', 'noopener,noreferrer');
     }
   };
 
-  // T맵 앱 실행하여 경로 안내
-  const launchTmapNavigation = () => {
-    if (routePoints.length < 2) {
-      alert('출발지와 목적지를 설정해주세요.');
+  // 네이버 내비게이션 실행
+  const viewNaverMap = () => {
+    if (routePoints.length === 0) return;
+
+    // 모바일 기기 체크
+    // if (!checkMobileAndAlert('네이버 지도')) return;
+
+    try {
+      const APP_NAME = 'test';
+      const BASE_URL = 'nmap://route/car';
+
+      // 단일 장소인 경우 간단히 처리
+      if (routePoints.length === 1) {
+        const point = routePoints[0];
+        if (point.mapx && point.mapy) {
+          const x = convertCoordinate(point.mapx);
+          const y = convertCoordinate(point.mapy);
+          console.log(`${BASE_URL}?dlat=${y}&dlng=${x}&dname=${encodeURIComponent(point.title)}&appname=${APP_NAME}`)
+          window.location.href = `${BASE_URL}?dlat=${y}&dlng=${x}&dname=${encodeURIComponent(point.title)}&appname=${APP_NAME}`;
+          return;
+        }
+      }
+
+      // 경로 지점 분류
+      const waypoints = routePoints.filter(p => p.type === 'waypoint');
+      const startPoint = routePoints.find(p => p.type === 'start') || (waypoints.length > 0 ? waypoints.shift() : null);
+      const endPoint = routePoints.find(p => p.type === 'end') || (waypoints.length > 0 ? waypoints.pop() : null);
+
+      // URL 파라미터 구성
+      const params: string[] = [];
+
+      // 출발지 파라미터 추가
+      if (startPoint?.mapx && startPoint?.mapy) {
+        params.push(`slng=${convertCoordinate(startPoint.mapx)}`);
+        params.push(`slat=${convertCoordinate(startPoint.mapy)}`);
+        params.push(`sname=${encodeURIComponent(startPoint.title)}`);
+      }
+
+      // 도착지 파라미터 추가
+      if (endPoint?.mapx && endPoint?.mapy) {
+        params.push(`dlng=${convertCoordinate(endPoint.mapx)}`);
+        params.push(`dlat=${convertCoordinate(endPoint.mapy)}`);
+        params.push(`dname=${encodeURIComponent(endPoint.title)}`);
+      }
+
+      // 경유지 파라미터 추가
+      waypoints.forEach((waypoint, index) => {
+        if (waypoint.mapx && waypoint.mapy) {
+          const prefix = `v${index + 1}`;
+          params.push(`${prefix}lng=${convertCoordinate(waypoint.mapx)}`);
+          params.push(`${prefix}lat=${convertCoordinate(waypoint.mapy)}`);
+          params.push(`${prefix}name=${encodeURIComponent(waypoint.title)}`);
+        }
+      });
+
+      // 앱 이름 추가
+      params.push(`appname=${APP_NAME}`);
+
+      // URL 완성 및 실행
+      const naverUrl = `${BASE_URL}?${params.join('&')}`;
+      console.log('네이버 지도 URL:', naverUrl);
+      window.location.href = naverUrl;
+    } catch (error) {
+      console.error('네이버 지도 실행 오류:', error);
+      alert('네이버 지도를 열 수 없습니다.');
+    }
+  };
+
+
+  // 티맵 내비게이션 함수
+  const launchTmapNavigation = async () => {
+    if (routePoints.length === 0) return;
+
+    // 모바일 기기 체크
+    // if (!checkMobileAndAlert('T맵')) return;
+
+    // 티맵은 경로가 2개를 초과하면 불가능
+    if (routePoints.length > 2) {
+      alert('T맵은 출발지와 도착지만 지원합니다. 경유지가 있는 경로는 네이버 지도를 이용해주세요.');
       return;
     }
 
     setNavLoading(true);
 
     try {
-      // 출발지
-      const startPoint = routePoints[0];
-      // 목적지
-      const endPoint = routePoints[routePoints.length - 1];
-      // 경유지들
-      const waypoints = routePoints.slice(1, routePoints.length - 1);
+      const BASE_URL = "tmap://route";
 
-      // T맵 URI 스킴 생성
-      let tmapScheme = `tmap://route?startname=${encodeURIComponent(startPoint.title)}`;
+      // 단일 장소인 경우 (목적지만 있는 경우)
+      if (routePoints.length === 1) {
+        const point = routePoints[0];
 
-      // 좌표 정보가 있다면 추가 (현재는 예시이므로 좌표 정보는 없음)
-      tmapScheme += `&goalname=${encodeURIComponent(endPoint.title)}`;
+        if (!point.mapx || !point.mapy) {
+          alert("좌표 정보가 없는 장소입니다. 다른 장소를 선택해주세요.");
+          return;
+        }
 
-      // 경유지 추가
-      waypoints.forEach((point, index) => {
-        tmapScheme += `&passname${index}=${encodeURIComponent(point.title)}`;
-      });
-
-      // 모바일 기기 확인
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-      if (isMobile) {
-        // 모바일에서 T맵 실행 시도
-        window.location.href = tmapScheme;
-
-        // 앱이 없는 경우 스토어로 이동
-        setTimeout(() => {
-          if (!document.hidden) {
-            if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-              window.location.href = 'https://apps.apple.com/kr/app/티맵/id431589174';
-            } else {
-              window.location.href = 'https://play.google.com/store/apps/details?id=com.skt.tmap.ku';
-            }
-          }
-        }, 2000);
-      } else {
-        alert('T맵 내비게이션은 모바일 기기에서만 실행 가능합니다.');
+        // 티맵도 좌표 변환 함수 사용
+        const x = convertCoordinate(point.mapx);
+        const y = convertCoordinate(point.mapy);
+        const tmapUrl = `${BASE_URL}?goalx=${x}&goaly=${y}&goalname=${encodeURIComponent(point.title)}`;
+        console.log('T맵 URL (단일 장소):', tmapUrl);
+        window.location.href = tmapUrl;
+        return;
       }
+
+      // 출발지와 목적지가 있는 경우
+      const [start, end] = routePoints;
+
+      if (!start.mapx || !start.mapy || !end.mapx || !end.mapy) {
+        alert("좌표 정보가 없는 장소가 포함되어 있습니다. 다른 장소를 선택해주세요.");
+        return;
+      }
+
+      // URL 생성 및 실행 (티맵도 convertCoordinate 사용)
+      const startX = convertCoordinate(start.mapx);
+      const startY = convertCoordinate(start.mapy);
+      const endX = convertCoordinate(end.mapx);
+      const endY = convertCoordinate(end.mapy);
+
+      const tmapUrl = `${BASE_URL}?startx=${startX}&starty=${startY}&startname=${encodeURIComponent(start.title)}&goalx=${endX}&goaly=${endY}&goalname=${encodeURIComponent(end.title)}`;
+      console.log('T맵 URL:', tmapUrl);
+      window.location.href = tmapUrl;
     } catch (error) {
       console.error('T맵 실행 오류:', error);
-      alert('T맵 실행 중 오류가 발생했습니다.');
+      alert('T맵을 열 수 없습니다.');
     } finally {
       setNavLoading(false);
     }
   };
 
-  // 네이버 지도로 보기
-  const viewOnNaverMap = () => {
-    if (routePoints.length < 2) {
-      alert('출발지와 목적지를 설정해주세요.');
-      return;
-    }
 
-    // 네이버 지도 URL 생성
-    const waypoints = routePoints.map((point, index) => {
-      const prefix = index === 0 ? 'sname' : (index === routePoints.length - 1 ? 'dname' : `waypoint${index-1}`);
-      return `${prefix}=${encodeURIComponent(point.title)}`;
-    }).join('&');
 
-    const mapUrl = `https://map.naver.com/v5/directions/?${waypoints}&pathType=0`;
-    window.open(mapUrl, '_blank');
-  };
 
-  // 검색어 바로가기 목록
-  const quickSearchTerms = [
-    '맛집', '카페', '관광지', '공원', '박물관'
-  ];
-
-  // 검색어 입력 처리 함수
-  const handleQuickSearch = (term: string) => {
-    if (searchInputRef.current) {
-      searchInputRef.current.setValue(term);
-      searchInputRef.current.focus();
-    }
-  };
-
-  // 장소가 이전에 선택된 장소인지 확인
-  const isSelectedPlace = (place: Place) => {
-    return previouslySelectedPlace && previouslySelectedPlace.id === place.id;
-  };
-
-  // 장소 카드 컴포넌트
-  const PlaceCard = ({ place }: { place: Place }) => {
-    const [imageError, setImageError] = useState(false);
-    const [imageLoaded, setImageLoaded] = useState(false);
-    const isPreviouslySelected = isSelectedPlace(place);
-
-    // 이미지 URL이 있는지 확인
-    const hasImage = place.image && place.image.trim() !== '';
-
-    // 이미지 프록시 URL 생성
-    const getProxyImageUrl = (url: string) => {
-      if (url.includes('blogthumb.pstatic.net') || url.includes('pstatic.net')) {
-        return `/api/image-proxy?url=${encodeURIComponent(url)}`;
-      }
-      return url;
-    };
-
-    // 안전한 이미지 URL
-    const safeImageUrl = hasImage
-        ? getProxyImageUrl(place.image!)
-        : 'https://via.placeholder.com/300x200?text=No+Image';
-
-    const handleImageError = () => {
-      setImageError(true);
-    };
-
-    const handleImageLoad = () => {
-      setImageLoaded(true);
-    };
-
-    return (
-        <div className={`card p-3 mb-3 ${isPreviouslySelected ? 'border-2 border-blue-500' : ''}`}>
-          <div className="flex">
-            <div className="w-20 h-20 overflow-hidden rounded-md bg-gray-100 dark:bg-gray-700 mr-3">
-              {hasImage && !imageError ? (
-                  <img
-                      src={safeImageUrl}
-                      alt={place.title}
-                      className="w-full h-full object-cover"
-                      onError={handleImageError}
-                      onLoad={handleImageLoad}
-                  />
-              ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-8 h-8">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                    </svg>
-                  </div>
-              )}
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center mb-1">
-                <h3 className="text-sm font-semibold" dangerouslySetInnerHTML={{ __html: place.title }}></h3>
-                {isPreviouslySelected && (
-                    <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
-                    선택됨
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 mb-2" dangerouslySetInnerHTML={{ __html: place.description }}></div>
-
-              <div className="flex justify-end gap-2">
-                {place.link && (
-                    <button
-                        onClick={() => visitBlog(place)}
-                        className="text-xs py-1 px-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md text-gray-700 dark:text-gray-300"
-                    >
-                      블로그 방문
-                    </button>
-                )}
-                {place.link && (
-                    <button
-                        onClick={() => handleShareBlog(place)}
-                        className="text-xs py-1 px-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md text-gray-700 dark:text-gray-300"
-                        disabled={shareLoading}
-                    >
-                      {shareLoading ? (
-                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                      ) : copied ? "복사됨!" : "공유"}
-                    </button>
-                )}
-                <button
-                    onClick={() => addPlaceToRoute(place)}
-                    className="btn-primary text-xs py-1 px-2"
-                >
-                  경로에 추가
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-    );
-  };
 
   return (
-      <div className="w-full">
-        <div className="mb-8">
-          <Search onSearch={handleSearch} ref={searchInputRef} initialQuery={searchQuery} />
-
-          {/* 검색어 바로가기 */}
-          <div className="flex flex-wrap gap-3 mt-4 justify-center">
-            {quickSearchTerms.map(term => (
-                <button
-                    key={term}
-                    onClick={() => handleQuickSearch(term)}
-                    className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-full py-2 px-4 text-sm"
-                >
-                  #{term}
-                </button>
-            ))}
-          </div>
+      <div>
+        <div className="mb-6">
+          <Search onSearch={handleSearch} ref={searchInputRef} />
         </div>
 
-        {/* 장소 검색 영역이 끝난 후 */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* 왼쪽 패널: 경로 리스트 */}
-          <div className="lg:col-span-1 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
-            <h2 className="text-lg font-semibold mb-4">경로 목록</h2>
-
-            {/* 직접 장소 추가 폼 */}
-            <div className="mb-4">
-              <form onSubmit={handleCustomFormSubmit} className="flex flex-col">
-                <label className="text-sm mb-1 text-gray-600 dark:text-gray-300">
-                  장소 직접 입력
-                </label>
-                <div className="flex">
-                  <input
-                      type="text"
-                      value={customPlaceName}
-                      onChange={(e) => setCustomPlaceName(e.target.value)}
-                      placeholder="처음 입력한 장소는 출발지가 됩니다."
-                      className="flex-1 border rounded-l-md px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600"
-                  />
-                  <button
-                      type="submit"
-                      className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-r-md text-sm"
-                      disabled={!customPlaceName.trim()}
-                  >
-                    추가
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  *정확한 장소명을 입력하면 내비게이션 연동이 잘 됩니다
-                </p>
-              </form>
-            </div>
-
-            <div className="h-px w-full bg-gray-200 dark:bg-gray-700 my-4"></div>
-
-            {routePoints.length === 0 ? (
-                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md text-center">
-                  <p className="text-gray-500 dark:text-gray-400 text-sm">
-                    위에서 장소를 직접 입력하거나 검색하여 경로를 추가하세요
-                  </p>
-                </div>
-            ) : (
-                <DragDropContext onDragEnd={handleDragEnd}>
-                  <Droppable droppableId="droppable-route">
-                    {(provided) => (
-                        <div
-                            {...provided.droppableProps}
-                            ref={provided.innerRef}
-                            className="space-y-2"
-                        >
-                          {routePoints.map((point, index) => (
-                              <Draggable key={point.id} draggableId={point.id} index={index}>
-                                {(provided) => (
-                                    <div
-                                        ref={provided.innerRef}
-                                        {...provided.draggableProps}
-                                        {...provided.dragHandleProps}
-                                        className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md flex items-center"
-                                    >
-                                      <div className="mr-2">
-                                        {point.type === 'start' ? (
-                                            <div className="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">
-                                              S
-                                            </div>
-                                        ) : point.type === 'end' ? (
-                                            <div className="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs">
-                                              E
-                                            </div>
-                                        ) : (
-                                            <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs">
-                                              {index}
-                                            </div>
-                                        )}
-                                      </div>
-                                      <div className="flex-1 ml-1">
-                                        <div className="text-sm font-medium line-clamp-1" dangerouslySetInnerHTML={{ __html: point.title }}></div>
-                                      </div>
-                                      <button
-                                          onClick={() => removeFromRoute(point.id)}
-                                          className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 ml-2"
-                                      >
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                      </button>
-                                    </div>
-                                )}
-                              </Draggable>
-                          ))}
-                          {provided.placeholder}
-                        </div>
-                    )}
-                  </Droppable>
-                </DragDropContext>
-            )}
-
-
-            {routePoints.length >= 1 && (
-                <div className="mt-6 space-y-3">
-                  <button
-                      onClick={launchTmapNavigation}
-                      className="btn-primary w-full flex items-center justify-center"
-                      disabled={navLoading}
-                  >
-                    {navLoading ? (
-                        <span className="flex items-center justify-center">
-                    <svg className="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    처리 중
-                  </span>
-                    ) : (
-                        <>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 mr-2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                          </svg>
-                          T맵으로 내비게이션
-
-                        </>
-                    )}
-                  </button>
-
-                  <button
-                      onClick={viewOnNaverMap}
-                      className="btn-secondary w-full flex items-center justify-center"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 mr-2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
-                    </svg>
-                    네이버 지도로 보기
-                  </button>
-                </div>
-            )}
-          </div>
+          {/* 왼쪽 패널: 경로 목록 */}
+          <RouteList
+              routePoints={routePoints}
+              onReorder={handleReorderRoutePoints}
+              onRemovePoint={removeFromRoute}
+              onLaunchNav={launchTmapNavigation}
+              onViewMap={viewNaverMap}
+              navLoading={navLoading}
+              onAddPlace={addPlaceToRoute} // 장소 추가 함수 연결
+          />
 
           {/* 오른쪽 패널: 검색 결과 */}
-          <div className="lg:col-span-3">
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
-              <h2 className="text-lg font-semibold mb-4">검색 결과</h2>
-
-              {loading && searchResults.length === 0 ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                  </div>
-              ) : searchResults.length > 0 ? (
-                  <InfiniteScroll onLoadMore={loadMore} hasMore={hasMore} loading={loading}>
-                    <div className="grid grid-cols-1 gap-3">
-                      {searchResults.map(place => (
-                          <PlaceCard key={place.id} place={place} />
-                      ))}
-                    </div>
-                  </InfiniteScroll>
-              ) : (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    {searchQuery ? '검색 결과가 없습니다. 다른 검색어를 입력해보세요.' : '장소를 검색해보세요.'}
-                  </div>
-              )}
-            </div>
-          </div>
+          <SearchResults
+              searchResults={searchResults}
+              loading={loading}
+              hasMore={hasMore}
+              searchQuery={searchQuery}
+              apiError={apiError}
+              onLoadMore={loadMore}
+              onAddPlaceToRoute={addPlaceToRoute}
+              onShareBlog={handleShareBlog}
+              onVisitBlog={handleVisitBlog}
+              shareLoading={shareLoading}
+              copied={copied}
+              previouslySelectedPlace={previouslySelectedPlace}
+          />
         </div>
       </div>
   );

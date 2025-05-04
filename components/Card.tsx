@@ -1,9 +1,8 @@
 // components/Card.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import {useState} from 'react';
 import Link from 'next/link';
-import axios from 'axios';
 
 export interface Place {
   id: string;
@@ -12,6 +11,10 @@ export interface Place {
   image?: string;
   link?: string;
   bloggerName?: string;
+  mapx?: string;
+  mapy?: string;
+  address?: string;
+  roadAddress?: string;
 }
 
 interface CardProps {

@@ -30,6 +30,19 @@ export interface BlogItem {
     postdate: string;
 }
 
+export interface NavigationRequest {
+    navigationType: 'tmap' | 'naver';
+    routePoints: {
+        id: string;
+        title: string;
+        type: 'start' | 'waypoint' | 'end';
+        mapx?: string;
+        mapy?: string;
+        address?: string;
+        roadAddress?: string;
+    }[];
+}
+
 // HTML 태그 제거 유틸리티 함수
 export const removeHTMLTags = (str: string): string => {
     if (!str) return '';
@@ -53,6 +66,35 @@ export const searchBlogPosts = async (query: string, start: number = 1, display:
         };
     }
 };
+
+export const searchLocals = async (query: string) => {
+    try {
+        const response = await apiClient.get<BlogSearchResponse>(`/search/locals?query=${encodeURIComponent(query)}`);
+        return response.data;
+    } catch (error) {
+        console.error('지역 검색 API 오류:', error);
+        // 기본 빈 응답 반환
+        return {
+            lastBuildDate: new Date().toISOString(),
+            total: 0,
+            start: 1,
+            display: 0,
+            items: []
+        };
+    }
+}
+
+// 내비게이션 URL 요청 함수
+export const requestNavigation = async (request: NavigationRequest): Promise<{ url: string }> => {
+    try {
+        const response = await apiClient.post<{ url: string }>('/search/navigation', request);
+        return response.data;
+    } catch (error) {
+        console.error('내비게이션 요청 오류:', error);
+        throw error;
+    }
+};
+
 
 // 블로그 메타데이터 가져오기
 export const fetchBlogMetadata = async (url: string) => {
