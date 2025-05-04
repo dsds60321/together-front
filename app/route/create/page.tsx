@@ -1,32 +1,11 @@
-// RoutePageClient.tsx
+// app/route/create/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { Place } from '@/components/Card';
 import { NavigationComponent } from '@/components/NavigationComponent';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import Link from 'next/link';
 
-interface RoutePageClientProps {
-    initialPlace: Place | null;
-    initialSuggestions: Place[];
-    params: { id: string };
-}
-
-export default function RoutePageClient({
-                                            initialPlace,
-                                            initialSuggestions,
-                                            params
-                                        }: RoutePageClientProps) {
-    const [initialPlaces, setInitialPlaces] = useState<Place[]>([]);
-
-    useEffect(() => {
-        // 초기 장소 설정
-        if (initialPlace) {
-            setInitialPlaces([initialPlace]);
-        }
-    }, [initialPlace]);
-
+export default function CreateRoutePage() {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             <header className="sticky top-0 z-10 bg-white dark:bg-gray-800 shadow-sm">
@@ -37,14 +16,19 @@ export default function RoutePageClient({
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
                             </svg>
                         </Link>
-                        <h1 className="text-xl font-bold">Together - 경로 계획</h1>
+                        <h1 className="text-xl font-bold">경로 생성</h1>
                     </div>
                     <ThemeToggle />
                 </div>
             </header>
 
             <main className="container mx-auto px-4 py-8">
-                <NavigationComponent initialPlaces={initialPlaces} />
+                <h1 className="text-2xl font-bold mb-6">나만의 경로 만들기</h1>
+                <p className="text-gray-600 dark:text-gray-400 mb-8">
+                    장소를 검색하고 경로를 만든 후 T맵이나 네이버 지도로 내비게이션하세요.
+                </p>
+
+                <NavigationComponent />
             </main>
 
             <footer className="bg-white dark:bg-gray-800 py-6 border-t border-gray-200 dark:border-gray-700">

@@ -1,3 +1,4 @@
+// components/Card.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -16,10 +17,10 @@ export interface Place {
 interface CardProps {
   place: Place;
   onSelect?: (place: Place) => void;
+  isSelected: boolean; // 선택 상태를 외부에서 전달받음
 }
 
-export function Card({ place, onSelect }: CardProps) {
-  const [isSelected, setIsSelected] = useState(false);
+export function Card({ place, onSelect, isSelected }: CardProps) {
   const [copied, setCopied] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -33,9 +34,8 @@ export function Card({ place, onSelect }: CardProps) {
   const hasImage = place.image && place.image.trim() !== '';
 
   const handleCardClick = () => {
-    setIsSelected(!isSelected);
-    // 선택 상태가 변경될 때 onSelect 콜백 호출
-    if (onSelect && !isSelected) {
+    // 상위 컴포넌트에서 관리되는 선택 상태 변경
+    if (onSelect) {
       onSelect(place);
     }
   };
@@ -45,12 +45,10 @@ export function Card({ place, onSelect }: CardProps) {
     setIsLoading(true);
 
     try {
-      // 백엔드에 장소 정보 전송
-      await axios.post('/api/places', { place });
-      console.log('장소 정보가 서버에 저장되었습니다:', place.id);
+      // 선택한 장소 localStorage에 저장
+      localStorage.setItem('selectedPlace', JSON.stringify(place));
     } catch (error) {
       console.error('장소 정보 저장 실패:', error);
-      // 오류 발생 시 사용자에게 알림 가능
       alert('경로 정보를 저장하는 중 오류가 발생했습니다. 다시 시도해주세요.');
       e.preventDefault(); // 링크 이동 취소
     } finally {
@@ -59,7 +57,6 @@ export function Card({ place, onSelect }: CardProps) {
   };
 
   const handleImageError = () => {
-    console.error('이미지 로딩 실패:', place.image);
     setImageError(true);
   };
 
@@ -95,6 +92,7 @@ export function Card({ place, onSelect }: CardProps) {
       setShareLoading(false);
     }
   };
+
 
   // 이미지 프록시 URL 생성
   const getProxyImageUrl = (url: string) => {
@@ -169,7 +167,7 @@ export function Card({ place, onSelect }: CardProps) {
             <input
                 type="checkbox"
                 checked={isSelected}
-                onChange={() => setIsSelected(!isSelected)}
+                onChange={() => onSelect && onSelect(place)}
                 className="mr-2 h-4 w-4 text-blue-600"
                 onClick={(e) => e.stopPropagation()}
             />
@@ -209,21 +207,23 @@ export function Card({ place, onSelect }: CardProps) {
             )}
 
             {isSelected && (
-                <Link
-                    href={`/route/${place.id}`}
-                    className="btn-primary text-sm py-1 px-2 flex-1 text-center"
-                    onClick={handleLinkClick}
-                >
-                  {isLoading ? (
-                      <span className="flex items-center justify-center">
-                      <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      처리 중
-                    </span>
-                  ) : "경로 안내"}
-                </Link>
+                <div className="flex gap-2 flex-1">
+                  <Link
+                      href="/route/create"
+                      className="btn-primary text-sm py-1 px-2 flex-1 text-center"
+                      onClick={handleLinkClick}
+                  >
+                    {isLoading ? (
+                        <span className="flex items-center justify-center">
+                        <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        처리 중
+                      </span>
+                    ) : "경로 만들기"}
+                  </Link>
+                </div>
             )}
           </div>
         </div>

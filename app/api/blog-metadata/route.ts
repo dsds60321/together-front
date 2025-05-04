@@ -63,11 +63,8 @@ async function extractNaverBlogOgImage(url: string): Promise<string | null> {
         // 1. 메인 페이지에서 iframe URL 추출
         const iframeUrl = await getNaverBlogIframeUrl(url);
         if (!iframeUrl) {
-            console.log('iframe URL을 찾을 수 없음');
             return null;
         }
-
-        console.log('추출된 iframe URL:', iframeUrl);
 
         // 2. iframe 내부 HTML 가져오기
         const iframeResponse = await axios.get(iframeUrl, {
@@ -82,7 +79,6 @@ async function extractNaverBlogOgImage(url: string): Promise<string | null> {
         const ogImage = $iframe('meta[property="og:image"]').attr('content');
 
         if (ogImage) {
-            console.log('iframe 내부에서 og:image 찾음:', ogImage);
             return convertToAbsoluteUrl(iframeUrl, ogImage);
         }
 
@@ -130,7 +126,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
 
-    console.log('블로그 메타데이터 요청 URL:', url);
 
     try {
         // 기본 HTTP 요청 헤더
@@ -152,7 +147,6 @@ export async function GET(request: NextRequest) {
 
         // 네이버 블로그일 경우 iframe 내부에서 og:image 추출
         if (isNaverBlog) {
-            console.log('네이버 블로그 감지: iframe에서 og:image 추출 시도');
             ogImage = await extractNaverBlogOgImage(url);
         } else {
             // 일반 웹사이트에서 og:image 추출
@@ -167,8 +161,6 @@ export async function GET(request: NextRequest) {
             siteName: $('meta[property="og:site_name"]').attr('content') || '',
             url: url
         };
-
-        console.log('추출된 메타데이터:', metadata);
 
         return NextResponse.json(metadata);
     } catch (error) {

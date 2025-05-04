@@ -1,6 +1,7 @@
+// components/Search.tsx
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { searchBlogPosts, BlogItem } from '@/lib/api';
 
 interface SearchProps {
@@ -8,9 +9,28 @@ interface SearchProps {
   initialQuery?: string;
 }
 
-export function Search({ onSearch, initialQuery = '' }: SearchProps) {
+// Ref로 노출할 메서드 정의
+export interface SearchRef {
+  setValue: (value: string) => void;
+  focus: () => void;
+}
+
+export const Search = forwardRef<SearchRef, SearchProps>(({ onSearch, initialQuery = '' }, ref) => {
   const [query, setQuery] = useState(initialQuery);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Ref 메서드 노출
+  useImperativeHandle(ref, () => ({
+    setValue: (value: string) => {
+      setQuery(value);
+    },
+    focus: () => {
+      const inputElement = document.querySelector('input[type="search"]') as HTMLInputElement;
+      if (inputElement) {
+        inputElement.focus();
+      }
+    }
+  }));
 
   // API 요청 함수
   const performSearch = useCallback(async (searchQuery: string) => {
@@ -21,7 +41,7 @@ export function Search({ onSearch, initialQuery = '' }: SearchProps) {
 
     setIsLoading(true);
     try {
-      const response = await searchBlogPosts(searchQuery);
+      const response = await searchBlogPosts(searchQuery, 1, 9);
       onSearch(searchQuery, response.items);
     } catch (error) {
       console.error('검색 처리 오류:', error);
@@ -79,4 +99,6 @@ export function Search({ onSearch, initialQuery = '' }: SearchProps) {
         </button>
       </form>
   );
-}
+});
+
+Search.displayName = 'Search';
