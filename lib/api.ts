@@ -84,22 +84,10 @@ export const searchLocals = async (query: string) => {
     }
 }
 
-// 내비게이션 URL 요청 함수
-export const requestNavigation = async (request: NavigationRequest): Promise<{ url: string }> => {
-    try {
-        const response = await apiClient.post<{ url: string }>('/search/navigation', request);
-        return response.data;
-    } catch (error) {
-        console.error('내비게이션 요청 오류:', error);
-        throw error;
-    }
-};
-
-
 // 블로그 메타데이터 가져오기
 export const fetchBlogMetadata = async (url: string) => {
     try {
-        const response = await fetch(`/api/blog-metadata?url=${encodeURIComponent(url)}`);
+        const response = await fetch(`https://gunho.dev/blog-metadata?url=${encodeURIComponent(url)}`);
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`메타데이터 가져오기 실패: ${response.status} ${errorText}`);
