@@ -4,7 +4,7 @@ import { Place } from './data';
 
 // axios 인스턴스 생성
 const apiClient = axios.create({
-    baseURL: 'http://0.0.0.0:8080',
+    baseURL: 'https://https://gunho.dev',
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
