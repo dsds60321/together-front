@@ -4,10 +4,14 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {Place} from './Card';
 import {Search} from './Search';
-import {BlogItem, convertBlogItemsToPlaces, searchBlogPosts} from '@/lib/api';
+import {BlogItem, convertBlogItemsToPlaces, saveRoute, searchBlogPosts} from '@/lib/api';
 import {RouteList} from './RouteList';
 import {SearchResults} from './SearchResults';
 import {checkMobileAndAlert, convertCoordinate} from "@/lib/utils";
+import {useRouter} from "next/navigation";
+import {useUser} from "@/context/userContext";
+import { SaveRouteModal } from './SaveRouteModal';
+
 
 // 경로 지점 타입 정의
 interface RoutePoint extends Place {
@@ -33,9 +37,40 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
   // T맵 내비게이션 호출 상태
   const [navLoading, setNavLoading] = useState(false);
 
+  // 경로 저장 상태 추가
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+
+
+
   // 블로그 링크 공유 상태
   const [shareLoading, setShareLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // 라우터 추가
+  const router = useRouter();
+
+  // 사용자 정보 가져오기
+  const { user } = useUser();
+
+  // 모달 열기 함수
+  const openSaveModal = () => {
+    if (routePoints.length < 1) {
+      alert('경로에 최소 1개 이상의 장소를 추가해주세요.');
+      return;
+    }
+
+    if (!user) {
+      if (confirm('로그인이 필요한 기능입니다. 로그인 페이지로 이동하시겠습니까?')) {
+        router.push('/');
+      }
+      return;
+    }
+
+    setShowSaveModal(true);
+  };
+
+
 
   // 검색창 참조
   const searchInputRef = useRef<any>(null);
@@ -323,7 +358,7 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
       const APP_NAME = 'test';
       const BASE_URL = 'nmap://route/car';
 
-      // 단일 장소인 경우 간단히 처리
+      // 단일 장소인 경우 경로가 아닌 단일 목적지로 처리
       if (routePoints.length === 1) {
         const point = routePoints[0];
         if (point.mapx && point.mapy) {
@@ -335,50 +370,45 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
         }
       }
 
-      // 경로 지점 분류
-      const waypoints = routePoints.filter(p => p.type === 'waypoint');
-      const startPoint = routePoints.find(p => p.type === 'start') || (waypoints.length > 0 ? waypoints.shift() : null);
-      const endPoint = routePoints.find(p => p.type === 'end') || (waypoints.length > 0 ? waypoints.pop() : null);
+      // 2개 이상의 장소가 있는 경우
+      if (routePoints.length >= 2) {
+        // URL 파라미터 구성
+        const params: string[] = [];
 
-      // URL 파라미터 구성
-      const params: string[] = [];
-
-      // 출발지 파라미터 추가
-      if (startPoint?.mapx && startPoint?.mapy) {
-        params.push(`slng=${convertCoordinate(startPoint.mapx)}`);
-        params.push(`slat=${convertCoordinate(startPoint.mapy)}`);
-        params.push(`sname=${encodeURIComponent(startPoint.title)}`);
-      }
-
-      // 도착지 파라미터 추가
-      if (endPoint?.mapx && endPoint?.mapy) {
-        params.push(`dlng=${convertCoordinate(endPoint.mapx)}`);
-        params.push(`dlat=${convertCoordinate(endPoint.mapy)}`);
-        params.push(`dname=${encodeURIComponent(endPoint.title)}`);
-      }
-
-      // 경유지 파라미터 추가
-      waypoints.forEach((waypoint, index) => {
-        if (waypoint.mapx && waypoint.mapy) {
-          const prefix = `v${index + 1}`;
-          params.push(`${prefix}lng=${convertCoordinate(waypoint.mapx)}`);
-          params.push(`${prefix}lat=${convertCoordinate(waypoint.mapy)}`);
-          params.push(`${prefix}name=${encodeURIComponent(waypoint.title)}`);
+        // 마지막 장소를 목적지로 설정
+        const lastPlace = routePoints[routePoints.length - 1];
+        if (lastPlace.mapx && lastPlace.mapy) {
+          params.push(`dlng=${convertCoordinate(lastPlace.mapx)}`);
+          params.push(`dlat=${convertCoordinate(lastPlace.mapy)}`);
+          params.push(`dname=${encodeURIComponent(lastPlace.title)}`);
         }
-      });
 
-      // 앱 이름 추가
-      params.push(`appname=${APP_NAME}`);
+        // 마지막 장소를 제외한 모든 장소를 경유지로 설정
+        const waypointPlaces = routePoints.slice(0, routePoints.length - 1);
+        waypointPlaces.forEach((waypoint, index) => {
+          if (waypoint.mapx && waypoint.mapy) {
+            const prefix = `v${index + 1}`;
+            params.push(`${prefix}lng=${convertCoordinate(waypoint.mapx)}`);
+            params.push(`${prefix}lat=${convertCoordinate(waypoint.mapy)}`);
+            params.push(`${prefix}name=${encodeURIComponent(waypoint.title)}`);
+          }
+        });
 
-      // URL 완성 및 실행
-      const naverUrl = `${BASE_URL}?${params.join('&')}`;
-      console.log('네이버 지도 URL:', naverUrl);
-      window.location.href = naverUrl;
+        // 앱 이름 추가
+        params.push(`appname=${APP_NAME}`);
+
+        // URL 완성 및 실행
+        const naverUrl = `${BASE_URL}?${params.join('&')}`;
+        console.log('네이버 지도 URL:', naverUrl);
+        window.location.href = naverUrl;
+        return;
+      }
     } catch (error) {
       console.error('네이버 지도 실행 오류:', error);
       alert('네이버 지도를 열 수 없습니다.');
     }
   };
+
 
 
   // 티맵 내비게이션 함수
@@ -440,8 +470,109 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
     }
   };
 
+  // 경로 저장 함수
+  const handleSaveRoute = async (routeName: string) => {
+    if (!user) {
+      alert('로그인이 필요한 기능입니다.');
+      return;
+    }
 
+    if (routePoints.length < 1) {
+      alert('경로에 최소 1개 이상의 장소를 추가해주세요.');
+      return;
+    }
 
+    setSaveLoading(true);
+
+    try {
+      // 네이버 지도 URL 생성 (필요하면)
+      let naverUri = '';
+      let tmapUri = '';
+
+      // 네이버 지도 URL 생성 로직
+      const naverResponse = await fetch('/api/navigation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          navigationType: 'naver',
+          routePoints: routePoints.map(point => ({
+            id: point.id,
+            title: point.title,
+            type: point.type,
+            mapx: point.mapx,
+            mapy: point.mapy,
+            address: point.address,
+            roadAddress: point.roadAddress
+          }))
+        }),
+      });
+
+      if (naverResponse.ok) {
+        const data = await naverResponse.json();
+        naverUri = data.uri || '';
+      }
+
+      // T맵 URL 생성 로직
+      const tmapResponse = await fetch('/api/navigation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          navigationType: 'tmap',
+          routePoints: routePoints.map(point => ({
+            id: point.id,
+            title: point.title,
+            type: point.type,
+            mapx: point.mapx,
+            mapy: point.mapy,
+            address: point.address,
+            roadAddress: point.roadAddress
+          }))
+        }),
+      });
+
+      if (tmapResponse.ok) {
+        const data = await tmapResponse.json();
+        tmapUri = data.uri || '';
+      }
+
+      // 점들을 API 형식에 맞게 변환
+      const pointsData = routePoints.map(point => ({
+        id: point.id,
+        title: point.title,
+        type: point.type,
+        mapx: point.mapx || '',
+        mapy: point.mapy || '',
+        address: point.address || '',
+        roadAddress: point.roadAddress || '',
+        description: point.description || '',
+        link: point.link || '',
+        image: point.image || ''
+      }));
+
+      // API 호출하여 경로 저장
+      const savedRoute = await saveRoute({
+        name: routeName,
+        points: pointsData,
+        userId: user.userId || user.id || '',
+        naverUri,
+        tmapUri
+      });
+
+      // 모달 닫기
+      setShowSaveModal(false);
+
+      // 성공 메시지
+      alert('경로가 성공적으로 저장되었습니다.');
+
+      // 저장된 경로 목록 페이지로 이동
+      router.push('/routes');
+    } catch (error) {
+      console.error('경로 저장 실패:', error);
+      alert('경로 저장에 실패했습니다.');
+    } finally {
+      setSaveLoading(false);
+    }
+  };
 
 
   return (
@@ -450,8 +581,6 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
           <Search onSearch={handleSearch} ref={searchInputRef} />
         </div>
 
-        {/*<div className="grid grid-cols-1 lg:grid-cols-4 gap-6">*/}
-        {/* 세로로 변경 */}
         <div className="grid lg:grid-cols-4 gap-6">
           {/* 왼쪽 패널: 경로 목록 */}
           <RouteList
@@ -461,7 +590,9 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
               onLaunchNav={launchTmapNavigation}
               onViewMap={viewNaverMap}
               navLoading={navLoading}
-              onAddPlace={addPlaceToRoute} // 장소 추가 함수 연결
+              saveLoading={saveLoading}
+              onAddPlace={addPlaceToRoute}
+              onSaveRoute={openSaveModal} // 여기를 변경 - 모달 여는 함수 연결
           />
 
           {/* 오른쪽 패널: 검색 결과 */}
@@ -480,6 +611,14 @@ export function NavigationComponent({ initialPlaces = [] }: NavigationComponentP
               previouslySelectedPlace={previouslySelectedPlace}
           />
         </div>
+
+        {/* 경로 저장 모달 */}
+        <SaveRouteModal
+            isOpen={showSaveModal}
+            onClose={() => setShowSaveModal(false)}
+            routePoints={routePoints}
+            isLoading={saveLoading}
+        />
       </div>
   );
 }

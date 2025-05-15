@@ -12,12 +12,14 @@ interface RoutePoint extends Place {
 
 interface RouteListProps {
     routePoints: RoutePoint[];
-    onReorder: (reorderedPoints: RoutePoint[]) => void;
+    onReorder: (newOrder: RoutePoint[]) => void;
     onRemovePoint: (id: string) => void;
     onLaunchNav: () => void;
     onViewMap: () => void;
     navLoading: boolean;
-    onAddPlace?: (place: Place) => void; // 장소 추가 함수 추가
+    saveLoading?: boolean;
+    onAddPlace: (place: Place) => void;
+    onSaveRoute: () => void;
 }
 
 export function RouteList({
@@ -27,7 +29,9 @@ export function RouteList({
                               onLaunchNav,
                               onViewMap,
                               navLoading,
-                              onAddPlace
+                              saveLoading = false,
+                              onAddPlace,
+                              onSaveRoute
                           }: RouteListProps) {
     // 드래그 앤 드롭 처리
     const handleDragEnd = (result: any) => {
@@ -121,6 +125,30 @@ export function RouteList({
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
                         </svg>
                         네이버 지도로 보기
+                    </button>
+
+                    {/* 경로 저장하기 버튼 추가 */}
+                    <button
+                        onClick={onSaveRoute}
+                        className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded flex items-center justify-center w-full"
+                        disabled={saveLoading}
+                    >
+                        {saveLoading ? (
+                            <span className="flex items-center justify-center">
+                                <svg className="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                저장 중
+                            </span>
+                        ) : (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 mr-2">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
+                                </svg>
+                                경로 저장하기
+                            </>
+                        )}
                     </button>
                 </div>
             )}

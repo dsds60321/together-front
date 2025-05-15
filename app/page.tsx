@@ -8,6 +8,10 @@ import { InfiniteScroll } from '@/components/InfiniteScroll';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { BlogItem, convertBlogItemsToPlaces, searchBlogPosts } from '@/lib/api';
 import Link from 'next/link';
+import { LoginModal } from '@/components/LoginModal';
+import { SignupModal } from '@/components/SignupModal';
+import { UserProfileDropdown } from '@/components/UserProfileDropdown';
+import {useUser} from "@/context/userContext";
 
 export default function Home() {
   const [query, setQuery] = useState('');
@@ -16,8 +20,15 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [totalResults, setTotalResults] = useState(0);
-  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null); // 현재 선택된 장소
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const ITEMS_PER_PAGE = 9;
+
+  // 모달 상태 관리
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
+
+  // 사용자 상태 불러오기
+  const { user, isLoading: userLoading } = useUser();
 
   // 검색 입력 요소에 대한 참조
   const searchInputRef = useRef<any>(null);
@@ -249,12 +260,47 @@ export default function Home() {
     }
   }, []);
 
+  // 로그인 모달 열기
+  const openLoginModal = () => {
+    setIsLoginModalOpen(true);
+    setIsSignupModalOpen(false);
+  };
+
+  // 회원가입 모달 열기
+  const openSignupModal = () => {
+    setIsSignupModalOpen(true);
+    setIsLoginModalOpen(false);
+  };
+
   return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <header className="sticky top-0 z-10 bg-white dark:bg-gray-800 shadow-sm">
           <div className="container mx-auto px-4 py-4 flex justify-between items-center">
             <h1 className="text-xl font-bold">Together</h1>
             <div className="flex items-center space-x-4">
+              {user && (
+                  <Link
+                      href="/routes"
+                      className="text-sm py-2 px-3 flex items-center"
+                  >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={1.5}
+                        stroke="currentColor"
+                        className="w-5 h-5 mr-1"
+                    >
+                      <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
+                      />
+                    </svg>
+                    내 경로
+                  </Link>
+              )}
+
               <Link
                   href="/route/create"
                   className="btn-primary text-sm py-2 px-3 flex items-center"
@@ -275,6 +321,30 @@ export default function Home() {
                 </svg>
                 경로 만들기
               </Link>
+
+              {/* 로그인 상태에 따른 UI 변경 */}
+              {!userLoading && (
+                  <>
+                    {user ? (
+                        <UserProfileDropdown />
+                    ) : (
+                        <>
+                          <button
+                              onClick={openSignupModal}
+                              className="text-sm py-2 px-3 bg-green-500 text-white rounded hover:bg-green-600"
+                          >
+                            회원가입
+                          </button>
+                          <button
+                              onClick={openLoginModal}
+                              className="text-sm py-2 px-3 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                          >
+                            로그인
+                          </button>
+                        </>
+                    )}
+                  </>
+              )}
               <ThemeToggle />
             </div>
           </div>
@@ -390,6 +460,23 @@ export default function Home() {
               </div>
           )}
         </main>
+
+        {/* 로그인 모달 */}
+        <LoginModal
+            isOpen={isLoginModalOpen}
+            onClose={() => setIsLoginModalOpen(false)}
+            onSignupClick={openSignupModal}
+        />
+
+        {/* 회원가입 모달 */}
+        <SignupModal
+            isOpen={isSignupModalOpen}
+            onClose={() => setIsSignupModalOpen(false)}
+            onSignupSuccess={() => {
+              alert('회원가입이 완료되었습니다. 로그인해주세요.');
+              openLoginModal();
+            }}
+        />
       </div>
   );
 }

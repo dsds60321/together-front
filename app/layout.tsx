@@ -1,34 +1,36 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import {UserProvider} from "@/context/userContext";
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+    variable: "--font-geist-sans",
+    subsets: ["latin"],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+    variable: "--font-geist-mono",
+    subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Together - Search and Navigate",
-  description: "Search, find, and navigate to your destinations",
+    title: "Together - Search and Navigate",
+    description: "Search, find, and navigate to your destinations",
 };
 
 export default function RootLayout({
-                                     children,
+                                       children,
                                    }: Readonly<{
-  children: React.ReactNode;
+    children: React.ReactNode;
 }>) {
-  return (
-      <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* 라이트 모드에서 다크 모드 클래스를 무시하는 스크립트 */}
-        <script dangerouslySetInnerHTML={{
-          __html: `
+    return (
+        <html lang="en" suppressHydrationWarning>
+        <head>
+            {/* 라이트 모드에서 다크 모드 클래스를 무시하는 스크립트 */}
+            <script dangerouslySetInnerHTML={{
+                __html: `
             (function() {
               const currentTheme = localStorage.getItem('theme');
               const systemDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -53,15 +55,17 @@ export default function RootLayout({
               }
             })();
           `
-        }} />
-      </head>
-      <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-      <ThemeProvider>
-        {children}
-      </ThemeProvider>
-      </body>
-      </html>
-  );
+            }} />
+        </head>
+        <body
+            className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        >
+        <UserProvider>
+            <ThemeProvider>
+                {children}
+            </ThemeProvider>
+        </UserProvider>
+        </body>
+        </html>
+    );
 }

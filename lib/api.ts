@@ -1,10 +1,12 @@
 // lib/api.ts
 import axios from 'axios';
 import { Place } from './data';
+import {RoutePoint} from "@/types/route";
 
 // axios 인스턴스 생성
 const apiClient = axios.create({
-    baseURL: 'https://gunho.dev/together',
+    baseURL: 'http://localhost:8080',
+    // baseURL: 'https://gunho.dev/together',
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
@@ -19,6 +21,15 @@ export interface BlogSearchResponse {
     display: number;
     items: BlogItem[];
 }
+
+export interface SaveRouteRequest {
+    name: string;
+    points: RoutePoint[];
+    userId: string;
+    naverUri?: string;
+    tmapUri?: string;
+}
+
 
 export interface BlogItem {
     id : string;
@@ -135,6 +146,22 @@ export const convertBlogItemToPlace = async (item: BlogItem, index: number): Pro
 
     return place;
 };
+
+// 경로 저장 함수
+export const saveRoute = async (routeData: SaveRouteRequest) => {
+    try {
+        // 토큰이 있으면 헤더에 추가
+        const token = localStorage.getItem('authToken');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        const response = await apiClient.post('/map', routeData, { headers });
+        return response.data;
+    } catch (error) {
+        console.error('경로 저장 실패:', error);
+        throw error;
+    }
+};
+
 
 // 전체 검색 결과를 Place 배열로 변환하는 함수
 export const convertBlogItemsToPlaces = async (items: BlogItem[]): Promise<Place[]> => {

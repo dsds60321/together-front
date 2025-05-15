@@ -4,8 +4,32 @@
 import {ThemeToggle} from '@/components/ThemeToggle';
 import Link from 'next/link';
 import {NavigationComponent} from "@/components/NavigationComponent";
+import {UserProfileDropdown} from "@/components/UserProfileDropdown";
+import {useUser} from "@/context/userContext";
+import {useState} from "react";
+import {LoginModal} from "@/components/LoginModal";
+import {SignupModal} from "@/components/SignupModal";
 
 export default function CreateRoutePage() {
+    // 모달 상태 관리
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
+
+    // 사용자 상태 불러오기
+    const { user, isLoading: userLoading } = useUser();
+
+    // 로그인 모달 열기
+    const openLoginModal = () => {
+        setIsLoginModalOpen(true);
+        setIsSignupModalOpen(false);
+    };
+
+    // 회원가입 모달 열기
+    const openSignupModal = () => {
+        setIsSignupModalOpen(true);
+        setIsLoginModalOpen(false);
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             <header className="sticky top-0 z-10 bg-white dark:bg-gray-800 shadow-sm">
@@ -18,7 +42,31 @@ export default function CreateRoutePage() {
                         </Link>
                         <h1 className="text-xl font-bold">경로 생성</h1>
                     </div>
-                    <ThemeToggle />
+                    <div className="flex items-center space-x-4">
+                        {!userLoading && (
+                            <>
+                                {user ? (
+                                    <UserProfileDropdown />
+                                ) : (
+                                    <>
+                                        <button
+                                            onClick={openSignupModal}
+                                            className="text-sm py-2 px-3 bg-green-500 text-white rounded hover:bg-green-600"
+                                        >
+                                            회원가입
+                                        </button>
+                                        <button
+                                            onClick={openLoginModal}
+                                            className="text-sm py-2 px-3 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                                        >
+                                            로그인
+                                        </button>
+                                    </>
+                                )}
+                            </>
+                        )}
+                        <ThemeToggle />
+                    </div>
                 </div>
             </header>
 
@@ -36,6 +84,23 @@ export default function CreateRoutePage() {
                     <p>© 2025 Together. All rights reserved.</p>
                 </div>
             </footer>
+
+            {/* 로그인 모달 */}
+            <LoginModal
+                isOpen={isLoginModalOpen}
+                onClose={() => setIsLoginModalOpen(false)}
+                onSignupClick={openSignupModal}
+            />
+
+            {/* 회원가입 모달 */}
+            <SignupModal
+                isOpen={isSignupModalOpen}
+                onClose={() => setIsSignupModalOpen(false)}
+                onSignupSuccess={() => {
+                    alert('회원가입이 완료되었습니다. 로그인해주세요.');
+                    openLoginModal();
+                }}
+            />
         </div>
     );
 }
